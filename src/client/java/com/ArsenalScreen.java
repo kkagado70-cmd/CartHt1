@@ -22,6 +22,7 @@ public class ArsenalScreen extends Screen {
 
     private boolean isBindingKey = false;
     private boolean isDraggingSlider = false;
+    private boolean wasMouseDown = false;
 
     public ArsenalScreen() {
         super(Component.literal("Arsenal GUI"));
@@ -35,6 +36,9 @@ public class ArsenalScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        // Processamento direto de cliques e sliders sem erros de assinatura
+        handleInput(mouseX, mouseY);
+
         graphics.fillGradient(0, 0, this.width, this.height, 0x60000000, 0x90000000);
 
         // Painel Principal
@@ -100,7 +104,7 @@ public class ArsenalScreen extends Screen {
         graphics.drawString(this.font, "Ativa o combo com mira S-Curve ao segurar o trilho.", cardX + 12, cardY + 28, TEXT_MUTED, false);
         graphics.fill(cardX + 10, cardY + 48, cardX + cardW - 10, cardY + 49, BORDER_COLOR);
 
-        // Sliders e Checkboxes
+        // Sliders e Opções
         int optY = cardY + 58;
         renderCheckbox(graphics, cardX + 12, optY, "Smooth Aim (Cinematica)", ExampleModClient.smoothAim);
         optY += 22;
@@ -135,6 +139,79 @@ public class ArsenalScreen extends Screen {
         super.render(graphics, mouseX, mouseY, delta);
     }
 
+    private void handleInput(int mouseX, int mouseY) {
+        if (this.minecraft == null) return;
+        long window = this.minecraft.getWindow().getWindow();
+
+        // Fechar GUI com ESC
+        if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) {
+            this.onClose();
+            return;
+        }
+
+        boolean isMouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
+
+        int cardX = winX + 12;
+        int cardY = winY + 42 + 20 + 18;
+        int cardW = winW - 24;
+
+        if (isMouseDown && !wasMouseDown) {
+            // Toggle Switch
+            int switchX = cardX + cardW - 32 - 12;
+            int switchY = cardY + 28;
+            if (mouseX >= switchX && mouseX <= switchX + 32 && mouseY >= switchY && mouseY <= switchY + 14) {
+                ExampleModClient.isEnabled = !ExampleModClient.isEnabled;
+            }
+
+            // Keybind Pill
+            int bindX = cardX + cardW - 44 - 12;
+            int bindY = cardY + 8;
+            if (mouseX >= bindX && mouseX <= bindX + 44 && mouseY >= bindY && mouseY <= bindY + 14) {
+                this.isBindingKey = !this.isBindingKey;
+            }
+
+            int optY = cardY + 58;
+            if (mouseX >= cardX + 12 && mouseX <= cardX + 160 && mouseY >= optY && mouseY <= optY + 12) {
+                ExampleModClient.smoothAim = !ExampleModClient.smoothAim;
+            }
+
+            optY += 22;
+            int sliderX = cardX + 160;
+            int sliderW = 120;
+            if (mouseX >= sliderX && mouseX <= sliderX + sliderW && mouseY >= optY && mouseY <= optY + 12) {
+                this.isDraggingSlider = true;
+                updateSlider(mouseX, sliderX, sliderW);
+            }
+
+            optY += 22;
+            if (mouseX >= cardX + 12 && mouseX <= cardX + 160 && mouseY >= optY && mouseY <= optY + 12) {
+                ExampleModClient.autoShoot = !ExampleModClient.autoShoot;
+            }
+
+            optY += 22;
+            if (mouseX >= cardX + 12 && mouseX <= cardX + 160 && mouseY >= optY && mouseY <= optY + 12) {
+                ExampleModClient.swapBack = !ExampleModClient.swapBack;
+            }
+        }
+
+        if (isMouseDown && isDraggingSlider) {
+            int sliderX = cardX + 160;
+            int sliderW = 120;
+            updateSlider(mouseX, sliderX, sliderW);
+        }
+
+        if (!isMouseDown) {
+            this.isDraggingSlider = false;
+        }
+
+        wasMouseDown = isMouseDown;
+    }
+
+    private void updateSlider(double mouseX, int sliderX, int sliderW) {
+        double pct = Math.max(0.0, Math.min(1.0, (mouseX - sliderX) / (double) sliderW));
+        ExampleModClient.aimSpeed = 5.0 + (pct * 55.0);
+    }
+
     private void renderCheckbox(GuiGraphics graphics, int x, int y, String label, boolean checked) {
         int boxSize = 10;
         graphics.fill(x, y, x + boxSize, y + boxSize, checked ? ACCENT_RED : 0x50000000);
@@ -150,97 +227,7 @@ public class ArsenalScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            int cardX = winX + 12;
-            int cardY = winY + 42 + 20 + 18;
-            int cardW = winW - 24;
-
-            int switchX = cardX + cardW - 32 - 12;
-            int switchY = cardY + 28;
-            if (mouseX >= switchX && mouseX <= switchX + 32 && mouseY >= switchY && mouseY <= switchY + 14) {
-                ExampleModClient.isEnabled = !ExampleModClient.isEnabled;
-                return true;
-            }
-
-            int bindX = cardX + cardW - 44 - 12;
-            int bindY = cardY + 8;
-            if (mouseX >= bindX && mouseX <= bindX + 44 && mouseY >= bindY && mouseY <= bindY + 14) {
-                this.isBindingKey = !this.isBindingKey;
-                return true;
-            }
-
-            int optY = cardY + 58;
-            if (mouseX >= cardX + 12 && mouseX <= cardX + 160 && mouseY >= optY && mouseY <= optY + 12) {
-                ExampleModClient.smoothAim = !ExampleModClient.smoothAim;
-                return true;
-            }
-
-            optY += 22;
-            int sliderX = cardX + 160;
-            int sliderW = 120;
-            if (mouseX >= sliderX && mouseX <= sliderX + sliderW && mouseY >= optY && mouseY <= optY + 12) {
-                this.isDraggingSlider = true;
-                updateSlider(mouseX, sliderX, sliderW);
-                return true;
-            }
-
-            optY += 22;
-            if (mouseX >= cardX + 12 && mouseX <= cardX + 160 && mouseY >= optY && mouseY <= optY + 12) {
-                ExampleModClient.autoShoot = !ExampleModClient.autoShoot;
-                return true;
-            }
-
-            optY += 22;
-            if (mouseX >= cardX + 12 && mouseX <= cardX + 160 && mouseY >= optY && mouseY <= optY + 12) {
-                ExampleModClient.swapBack = !ExampleModClient.swapBack;
-                return true;
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        this.isDraggingSlider = false;
-        return super.mouseReleased(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (this.isDraggingSlider) {
-            int cardX = winX + 12;
-            int cardY = winY + 42 + 20 + 18;
-            int optY = cardY + 58 + 22;
-            int sliderX = cardX + 160;
-            int sliderW = 120;
-            updateSlider(mouseX, sliderX, sliderW);
-            return true;
-        }
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
-    }
-
-    private void updateSlider(double mouseX, int sliderX, int sliderW) {
-        double pct = Math.max(0.0, Math.min(1.0, (mouseX - sliderX) / (double) sliderW));
-        ExampleModClient.aimSpeed = 5.0 + (pct * 55.0);
-    }
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.isBindingKey) {
-            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_DELETE) {
-                ExampleModClient.keybind = GLFW.GLFW_KEY_UNKNOWN;
-            } else {
-                ExampleModClient.keybind = keyCode;
-            }
-            this.isBindingKey = false;
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
     public boolean isPauseScreen() {
         return false;
     }
-}
+            }
